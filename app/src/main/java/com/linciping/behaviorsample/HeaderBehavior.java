@@ -43,11 +43,58 @@ public class HeaderBehavior<V extends View> extends ViewOffsetBehavior<V> {
         }
 
         switch (ev.getActionMasked()){
-            case MotionEvent.ACTION_DOWN:
-                isBeingDragged=false;
-                final int x= (int) ev.getX();
-                final int y= (int) ev.getY();
+            case MotionEvent.ACTION_DOWN: {
+                isBeingDragged = false;
+                final int x = (int) ev.getX();
+                final int y = (int) ev.getY();
+                if (canDragView(child) && parent.isPointInChildBounds(child, x, y)) {
+                    lastMotionY = y;
+                    this.activePointedId = ev.getPointerId(0);
+                    ensureVelocityTracker();
+                }
+            }
+            break;
+            case MotionEvent.ACTION_MOVE: {
+                final int activePointerId = this.activePointedId;
+                if (activePointerId == INVALID_POINTER) {
+                    break;
+                }
+                final int pointerIndex = ev.findPointerIndex(activePointerId);
+                if (pointerIndex == -1) {
+                    break;
+                }
+                final int y = (int) ev.getY(pointerIndex);
+                final int yDiff = Math.abs(y - lastMotionY);
+                if (yDiff > touchSlop) {
+                    isBeingDragged = true;
+                    lastMotionY = y;
+                }
                 break;
+            }
+            case MotionEvent.ACTION_CANCEL:
+            case MotionEvent.ACTION_UP: {
+                isBeingDragged = false;
+                this.activePointedId = INVALID_POINTER;
+                if (velocityTracker != null) {
+                    velocityTracker.recycle();
+                    velocityTracker = null;
+                }
+                break;
+            }
+        }
+        if (velocityTracker!=null){
+            velocityTracker.addMovement(ev);
+        }
+        return isBeingDragged;
+    }
+
+    boolean canDragView(V view) {
+        return false;
+    }
+
+    private void ensureVelocityTracker() {
+        if (velocityTracker == null) {
+            velocityTracker = VelocityTracker.obtain();
         }
     }
 }
